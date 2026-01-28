@@ -2,4 +2,4 @@
 
 Initial RAM disk builder to unlock your GELI partition over SSH!
 
-(more info coming soon)
+See [this post](https://sindro.me/posts/2026-01-28-freebsd-encrypted-zfs-remote-unlock/) for the why and how to use this.
