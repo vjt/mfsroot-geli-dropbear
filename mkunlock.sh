@@ -265,6 +265,10 @@ if [ \$? -ne 0 ]; then
   exit 1
 fi
 
+echo ">>> Re-mounting /boot in chroot..."
+umount /ufsboot
+mount /dev/$BOOTPART "\$MOUNTPOINT/ufsboot"
+
 echo ">>> Mounting devfs in chroot..."
 mount -t devfs devfs "\$MOUNTPOINT/dev"
 
@@ -276,6 +280,10 @@ chroot "\$MOUNTPOINT" /rescue/sh
 
 echo ">>> Unmounting devfs..."
 umount "\$MOUNTPOINT/dev"
+
+echo ">>> Re-mounting boot here..."
+umount "\$MOUNTPOINT/ufsboot"
+mount /ufsboot
 
 echo ">>> Exporting the pool" 
 zpool export "$ZFS_POOL"
