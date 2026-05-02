@@ -272,11 +272,15 @@ mount -ur /
 # Tear down $IFACE before re-root — kernel preserves interface state across
 # reboot -r, and the real /etc/rc may want these addresses on a different
 # interface (e.g. bridge0 with $IFACE as a member). MFS has no awk, so
-# the addresses are baked in as constants at mkunlock build time.
+# the addresses are baked in as constants at mkunlock build time. Default
+# routes added by /etc/rc above also persist; drop them so the real
+# /etc/rc starts from a clean routing table.
 echo ">>> Tearing down $IFACE before re-root..."
 ifconfig $IFACE inet $IPV4_ADDR -alias 2>/dev/null || true
 ifconfig $IFACE inet6 $IPV6_ADDR -alias 2>/dev/null || true
 ifconfig $IFACE down
+route delete default 2>/dev/null || true
+route -6 delete default 2>/dev/null || true
 
 /sbin/reboot -r
 EOF
