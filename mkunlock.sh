@@ -160,6 +160,13 @@ GW4="${MFS_GW4:-$(sysrc -n defaultrouter)}"
 GW6="${MFS_GW6:-$(sysrc -n ipv6_defaultrouter)}"
 HOSTNAME=$(sysrc -n hostname)
 
+# Extract bare addresses (no prefix / no "inet6" prefix word) for the
+# boot.sh teardown step. The MFS environment lacks awk, so we slice these
+# at script-build time and bake them in as constants.
+IPV4_ADDR="${IPV4%%/*}"
+set -- $IPV6
+IPV6_ADDR="$2"
+
 # Generate RC script
 cat > "$WORKDIR/etc/rc" <<EOF
 #!/bin/sh
@@ -264,14 +271,11 @@ mount -ur /
 
 # Tear down $IFACE before re-root — kernel preserves interface state across
 # reboot -r, and the real /etc/rc may want these addresses on a different
-# interface (e.g. bridge0 with $IFACE as a member).
+# interface (e.g. bridge0 with $IFACE as a member). MFS has no awk, so
+# the addresses are baked in as constants at mkunlock build time.
 echo ">>> Tearing down $IFACE before re-root..."
-for addr in \$(ifconfig $IFACE | awk '/inet / {print \$2}'); do
-  ifconfig $IFACE inet \$addr -alias 2>/dev/null || true
-done
-for addr in \$(ifconfig $IFACE | awk '/inet6 / && !/fe80/ {print \$2}'); do
-  ifconfig $IFACE inet6 \$addr -alias 2>/dev/null || true
-done
+ifconfig $IFACE inet $IPV4_ADDR -alias 2>/dev/null || true
+ifconfig $IFACE inet6 $IPV6_ADDR -alias 2>/dev/null || true
 ifconfig $IFACE down
 
 /sbin/reboot -r
