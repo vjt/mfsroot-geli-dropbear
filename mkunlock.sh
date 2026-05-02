@@ -131,11 +131,24 @@ if [ -n "$KEYFILE" -a -f "$KEYFILE" ]; then
 fi
 
 # Network config
+#
+# By default we read the address/gateway values from rc.conf via sysrc.
+# That works when the host configures $IFACE directly. If the host
+# configures $IFACE indirectly (e.g. attached to a bridge, with the IPs
+# living on the bridge), sysrc reads return useless values — set the
+# MFS_IPV4 / MFS_IPV6 / MFS_GW4 / MFS_GW6 env vars to override:
+#
+#   MFS_IPV4="203.0.113.10/24" \
+#   MFS_IPV6="inet6 2001:db8::10 prefixlen 64" \
+#   MFS_GW4="203.0.113.1" \
+#   MFS_GW6="fe80::1%vtnet0" \
+#       ./mkunlock.sh
+#
 echo ">>> Generate network configuration..."
-IPV4=$(sysrc -n ifconfig_${IFACE})
-IPV6=$(sysrc -n ifconfig_${IFACE}_ipv6)
-GW4=$(sysrc -n defaultrouter)
-GW6=$(sysrc -n ipv6_defaultrouter)
+IPV4="${MFS_IPV4:-$(sysrc -n ifconfig_${IFACE})}"
+IPV6="${MFS_IPV6:-$(sysrc -n ifconfig_${IFACE}_ipv6)}"
+GW4="${MFS_GW4:-$(sysrc -n defaultrouter)}"
+GW6="${MFS_GW6:-$(sysrc -n ipv6_defaultrouter)}"
 HOSTNAME=$(sysrc -n hostname)
 
 # Generate RC script
@@ -239,6 +252,18 @@ kenv vfs.root.mountfrom="zfs:$ZFS_POOL/$ZFS_ROOT"
 
 umount /ufsboot
 mount -ur /
+
+# Tear down $IFACE before re-root — kernel preserves interface state across
+# reboot -r, and the real /etc/rc may want these addresses on a different
+# interface (e.g. bridge0 with $IFACE as a member).
+echo ">>> Tearing down $IFACE before re-root..."
+for addr in \$(ifconfig $IFACE | awk '/inet / {print \$2}'); do
+  ifconfig $IFACE inet \$addr -alias 2>/dev/null || true
+done
+for addr in \$(ifconfig $IFACE | awk '/inet6 / && !/fe80/ {print \$2}'); do
+  ifconfig $IFACE inet6 \$addr -alias 2>/dev/null || true
+done
+ifconfig $IFACE down
 
 /sbin/reboot -r
 EOF
