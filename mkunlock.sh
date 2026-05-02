@@ -21,6 +21,15 @@ ROOT_HASH=$(grep "^root:" /etc/master.passwd | awk -F: '{print $2}')
 ZFS_POOL="tank"
 ZFS_ROOT="ROOT"
 
+# Local overrides — sourced if present (gitignored). Anything settable above
+# or any of the MFS_* network vars (see Network config below) can be set
+# here to keep host-specific values out of git.
+LOCAL_CONFIG="${MKUNLOCK_LOCAL:-$(dirname "$0")/mkunlock.local}"
+if [ -f "$LOCAL_CONFIG" ]; then
+  echo ">>> Sourcing local overrides: $LOCAL_CONFIG"
+  . "$LOCAL_CONFIG"
+fi
+
 _cleanup() {
   echo ">>> Removing workdir $WORKDIR..."
   rm -rf "$WORKDIR"
